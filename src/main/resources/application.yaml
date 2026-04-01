@@ -15,7 +15,7 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       repositories:
-        enabled: false
+        enabled: true
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     url: ${LIQUIBASE_URL:jdbc:postgresql://localhost:5432/nudes_protector}
@@ -34,12 +34,10 @@ spring:
             enable: ${MAIL_SMTP_STARTTLS:false}
 
 app:
-  frontend:
-    base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
   security:
-    login:
-      max-failed-attempts: 5
-      lock-duration: PT15M
+    mfa:
+      otp-ttl: PT5M
+      max-attempts: 3
   mail:
     verification:
       ttl: PT15M
