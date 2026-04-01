@@ -38,6 +38,10 @@ app:
     mfa:
       otp-ttl: PT5M
       max-attempts: 3
+    passkeys:
+      rp-id: ${APP_SECURITY_PASSKEYS_RP_ID:localhost}
+      rp-name: ${APP_SECURITY_PASSKEYS_RP_NAME:Nudes Protector}
+      allowed-origins: ${APP_SECURITY_PASSKEYS_ALLOWED_ORIGINS:http://localhost:3000}
   mail:
     verification:
       ttl: PT15M

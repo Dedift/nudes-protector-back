@@ -1,5 +1,6 @@
 package mm.nudesprotectorback.user.service
 
+import mm.nudesprotectorback.auth.passkey.service.PasskeyUserEntityService
 import mm.nudesprotectorback.user.model.User
 import mm.nudesprotectorback.user.repository.UserRepository
 import mm.nudesprotectorback.user.web.dto.CreateUserRequest
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service
 class UserRegistrationService(
     private val userRepository: UserRepository,
     private val emailVerificationService: EmailVerificationService,
+    private val passkeyUserEntityService: PasskeyUserEntityService,
     private val passwordEncoder: PasswordEncoder,
 ) {
     fun createUser(request: CreateUserRequest): CreateUserResponse {
@@ -34,6 +36,7 @@ class UserRegistrationService(
             )
         )
 
+        passkeyUserEntityService.ensureExists(savedUser)
         emailVerificationService.issueCodeForUser(savedUser)
 
         return CreateUserResponse(
