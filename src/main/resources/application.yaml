@@ -1,3 +1,46 @@
+server:
+  port: 8081
 spring:
+  threads:
+    virtual:
+      enabled: true
   application:
-    name: nudes-protector-back
+    name: Nudes Protector
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/nudes_protector}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      repositories:
+        enabled: false
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    url: ${LIQUIBASE_URL:jdbc:postgresql://localhost:5432/nudes_protector}
+    user: ${LIQUIBASE_USERNAME:${DB_USERNAME:postgres}}
+    password: ${LIQUIBASE_PASSWORD:${DB_PASSWORD:postgres}}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:false}
+
+app:
+  frontend:
+    base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
+  security:
+    login:
+      max-failed-attempts: 5
+      lock-duration: PT15M
+  mail:
+    verification:
+      ttl: PT15M
+    from: ${APP_MAIL_FROM:noreply@nudesprotector.local}
