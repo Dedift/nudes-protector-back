@@ -40,8 +40,16 @@ class UserController(
 
     @PostMapping("/mfa/login")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    fun mfaLogin(@Valid @RequestBody request: MfaLoginRequest): MfaLoginResponse =
-        mfaAuthenticationService.startAuthentication(request)
+    fun mfaLogin(
+        @Valid @RequestBody request: MfaLoginRequest,
+        httpServletRequest: HttpServletRequest,
+        httpServletResponse: HttpServletResponse,
+    ): MfaLoginResponse =
+        mfaAuthenticationService.startAuthentication(
+            request = request,
+            httpServletRequest = httpServletRequest,
+            httpServletResponse = httpServletResponse,
+        )
 
     @PostMapping("/mfa/verify")
     @ResponseStatus(HttpStatus.OK)

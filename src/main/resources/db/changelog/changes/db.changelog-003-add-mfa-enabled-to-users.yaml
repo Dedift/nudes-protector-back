@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-add-mfa-enabled-to-users
+      author: stanislau.zhvanski
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: mfa_enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

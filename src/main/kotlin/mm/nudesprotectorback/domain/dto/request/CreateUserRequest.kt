@@ -19,4 +19,5 @@ data class CreateUserRequest(
         message = "Password must contain letters, digits, and special characters",
     )
     val password: String,
+    val mfaEnabled: Boolean = false,
 )

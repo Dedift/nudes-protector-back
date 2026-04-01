@@ -17,13 +17,25 @@ import org.springframework.stereotype.Service
 class MfaAuthenticationService(
     private val authenticationManager: AuthenticationManager,
 ) {
-    fun startAuthentication(request: MfaLoginRequest): MfaLoginResponse {
-        authenticationManager.authenticate(
+    fun startAuthentication(
+        request: MfaLoginRequest,
+        httpServletRequest: HttpServletRequest,
+        httpServletResponse: HttpServletResponse,
+    ): MfaLoginResponse {
+        val authentication = authenticationManager.authenticate(
             EmailPasswordAuthenticationToken(
                 email = request.email,
                 password = request.password,
             )
         )
+
+        if (authentication.isAuthenticated) {
+            saveAuthentication(authentication, httpServletRequest, httpServletResponse)
+            return MfaLoginResponse(
+                otpRequired = false,
+                message = "Authenticated successfully",
+            )
+        }
 
         return MfaLoginResponse(
             otpRequired = true,
@@ -43,6 +55,19 @@ class MfaAuthenticationService(
             )
         )
 
+        saveAuthentication(authentication, httpServletRequest, httpServletResponse)
+
+        return MfaVerifyResponse(
+            authenticated = true,
+            message = "Authenticated successfully",
+        )
+    }
+
+    private fun saveAuthentication(
+        authentication: org.springframework.security.core.Authentication,
+        httpServletRequest: HttpServletRequest,
+        httpServletResponse: HttpServletResponse,
+    ) {
         val securityContext = SecurityContextHolder.createEmptyContext()
         securityContext.authentication = authentication
         SecurityContextHolder.setContext(securityContext)
@@ -50,11 +75,6 @@ class MfaAuthenticationService(
             securityContext,
             httpServletRequest,
             httpServletResponse,
-        )
-
-        return MfaVerifyResponse(
-            authenticated = true,
-            message = "Authenticated successfully",
         )
     }
 }

@@ -6,7 +6,9 @@ import mm.nudesprotectorback.service.MfaLoginService
 import org.springframework.security.authentication.AuthenticationProvider
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.DisabledException
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
 
@@ -28,6 +30,14 @@ class EmailPasswordAuthenticationProvider(
         }
         if (!user.emailVerified) {
             throw DisabledException("Email is not verified")
+        }
+
+        if (!user.mfaEnabled) {
+            return UsernamePasswordAuthenticationToken.authenticated(
+                user.email,
+                null,
+                listOf(SimpleGrantedAuthority("ROLE_USER")),
+            )
         }
 
         mfaLoginService.issueOtp(user)

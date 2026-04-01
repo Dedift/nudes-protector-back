@@ -16,6 +16,8 @@ data class User(
     val passwordHash: String,
     @Column("email_verified")
     val emailVerified: Boolean = false,
+    @Column("mfa_enabled")
+    val mfaEnabled: Boolean = false,
     @Column("created_at")
     val createdAt: Instant = Instant.now(),
 )
