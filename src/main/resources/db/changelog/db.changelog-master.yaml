@@ -11,3 +11,5 @@ databaseChangeLog:
       file: db/changelog/changes/db.changelog-005-create-one-time-tokens.yaml
   - include:
       file: db/changelog/changes/db.changelog-006-create-persistent-logins.yaml
+  - include:
+      file: db/changelog/changes/db.changelog-007-create-user-oauth2-accounts.yaml

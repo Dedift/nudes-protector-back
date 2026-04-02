@@ -1,5 +1,7 @@
 package mm.nudesprotectorback.config
 
+import mm.nudesprotectorback.auth.oauth2.service.CustomOAuth2UserService
+import mm.nudesprotectorback.auth.oauth2.service.CustomOidcUserService
 import mm.nudesprotectorback.auth.rememberme.JdbcPersistentTokenRepository
 import mm.nudesprotectorback.auth.security.EmailOtpAuthenticationProvider
 import mm.nudesprotectorback.auth.security.EmailPasswordAuthenticationProvider
@@ -54,6 +56,8 @@ class SpringSecurityConfig(
         generateOneTimeTokenRequestResolver: GenerateOneTimeTokenRequestResolver,
         oneTimeTokenGenerationSuccessHandler: OneTimeTokenGenerationSuccessHandler,
         rememberMeServices: RememberMeServices,
+        customOAuth2UserService: CustomOAuth2UserService,
+        customOidcUserService: CustomOidcUserService,
     ): SecurityFilterChain =
         http
             .csrf {
@@ -63,8 +67,10 @@ class SpringSecurityConfig(
                 it.requestMatchers(
                     "/csrf",
                     "/logout",
+                    "/oauth2/**",
                     "/login/webauthn",
                     "/login/ott",
+                    "/login/oauth2/**",
                     "/ott/generate",
                     "/users/register",
                     "/users/verify-email",
@@ -87,6 +93,12 @@ class SpringSecurityConfig(
             }
             .rememberMe {
                 it.rememberMeServices(rememberMeServices)
+            }
+            .oauth2Login {
+                it.userInfoEndpoint { userInfo ->
+                    userInfo.userService(customOAuth2UserService)
+                    userInfo.oidcUserService(customOidcUserService)
+                }
             }
             .logout(Customizer.withDefaults())
             .build()
