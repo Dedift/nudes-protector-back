@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.webauthn.management.JdbcPublicKeyCredentialUserEntityRepository
 import org.springframework.security.web.webauthn.management.JdbcUserCredentialRepository
@@ -36,15 +37,11 @@ class SpringSecurityConfig(
     ): SecurityFilterChain =
         http
             .csrf {
-                it.ignoringRequestMatchers(
-                    "/users/register",
-                    "/users/verify-email",
-                    "/users/mfa/login",
-                    "/users/mfa/verify",
-                )
+                it.csrfTokenRepository(HttpSessionCsrfTokenRepository())
             }
             .authorizeHttpRequests {
                 it.requestMatchers(
+                    "/csrf",
                     "/logout",
                     "/login/webauthn",
                     "/users/register",
