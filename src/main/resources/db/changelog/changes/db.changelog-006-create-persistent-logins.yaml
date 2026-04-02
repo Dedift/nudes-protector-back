@@ -1,36 +1,41 @@
 databaseChangeLog:
   - changeSet:
-      id: 005-create-one-time-tokens
+      id: 006-create-persistent-logins
       author: stanislau.zhvanski
       preConditions:
         - onFail: MARK_RAN
         - onError: MARK_RAN
         - not:
             tableExists:
-              tableName: one_time_tokens
+              tableName: persistent_logins
       changes:
         - createTable:
-            tableName: one_time_tokens
+            tableName: persistent_logins
             columns:
               - column:
-                  name: token_value
-                  type: VARCHAR(36)
+                  name: username
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: series
+                  type: VARCHAR(64)
                   constraints:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: username
-                  type: VARCHAR(255)
+                  name: token
+                  type: VARCHAR(64)
                   constraints:
                     nullable: false
               - column:
-                  name: expires_at
+                  name: last_used
                   type: TIMESTAMP
                   constraints:
                     nullable: false
         - createIndex:
-            tableName: one_time_tokens
-            indexName: idx_one_time_tokens_username
+            tableName: persistent_logins
+            indexName: idx_persistent_logins_username
             columns:
               - column:
                   name: username

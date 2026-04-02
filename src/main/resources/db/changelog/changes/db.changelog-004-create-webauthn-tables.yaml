@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: 003-create-user-entities
-      author: codex
+      author: stanislau.zhvanski
       preConditions:
         - onFail: MARK_RAN
         - onError: MARK_RAN

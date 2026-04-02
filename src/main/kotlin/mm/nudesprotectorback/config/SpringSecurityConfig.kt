@@ -1,5 +1,6 @@
 package mm.nudesprotectorback.config
 
+import mm.nudesprotectorback.auth.rememberme.JdbcPersistentTokenRepository
 import mm.nudesprotectorback.auth.security.EmailOtpAuthenticationProvider
 import mm.nudesprotectorback.auth.security.EmailPasswordAuthenticationProvider
 import org.springframework.beans.factory.annotation.Value
@@ -14,9 +15,13 @@ import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.core.userdetails.UserDetailsService
+import org.springframework.security.web.authentication.RememberMeServices
 import org.springframework.security.web.authentication.ott.DefaultGenerateOneTimeTokenRequestResolver
 import org.springframework.security.web.authentication.ott.GenerateOneTimeTokenRequestResolver
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler
+import org.springframework.security.web.authentication.rememberme.PersistentTokenBasedRememberMeServices
+import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository
@@ -36,6 +41,10 @@ class SpringSecurityConfig(
     private val allowedOrigins: String,
     @Value($$"${app.security.ott.ttl:PT5M}")
     private val ottTtl: java.time.Duration,
+    @Value($$"${app.security.remember-me.key:change-me-remember-me-key}")
+    private val rememberMeKey: String,
+    @Value($$"${app.security.remember-me.token-validity-seconds:2592000}")
+    private val rememberMeTokenValiditySeconds: Int,
 ) {
 
     @Bean
@@ -44,6 +53,7 @@ class SpringSecurityConfig(
         oneTimeTokenService: OneTimeTokenService,
         generateOneTimeTokenRequestResolver: GenerateOneTimeTokenRequestResolver,
         oneTimeTokenGenerationSuccessHandler: OneTimeTokenGenerationSuccessHandler,
+        rememberMeServices: RememberMeServices,
     ): SecurityFilterChain =
         http
             .csrf {
@@ -75,11 +85,31 @@ class SpringSecurityConfig(
                 it.tokenService(oneTimeTokenService)
                 it.generateRequestResolver(generateOneTimeTokenRequestResolver)
             }
+            .rememberMe {
+                it.rememberMeServices(rememberMeServices)
+            }
             .logout(Customizer.withDefaults())
             .build()
 
     @Bean
     fun oneTimeTokenService(jdbc: JdbcOperations): OneTimeTokenService = JdbcOneTimeTokenService(jdbc)
+
+    @Bean
+    fun persistentTokenRepository(jdbc: JdbcOperations): PersistentTokenRepository =
+        JdbcPersistentTokenRepository(jdbc)
+
+    @Bean
+    fun rememberMeServices(
+        userDetailsService: UserDetailsService,
+        persistentTokenRepository: PersistentTokenRepository,
+    ): RememberMeServices =
+        PersistentTokenBasedRememberMeServices(
+            rememberMeKey,
+            userDetailsService,
+            persistentTokenRepository,
+        ).apply {
+            setTokenValiditySeconds(rememberMeTokenValiditySeconds)
+        }
 
     @Bean
     fun generateOneTimeTokenRequestResolver(): GenerateOneTimeTokenRequestResolver =

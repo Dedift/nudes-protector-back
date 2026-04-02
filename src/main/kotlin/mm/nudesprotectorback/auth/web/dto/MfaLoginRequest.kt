@@ -9,4 +9,5 @@ data class MfaLoginRequest(
     val email: String,
     @field:NotBlank
     val password: String,
+    val rememberMe: Boolean = false,
 )

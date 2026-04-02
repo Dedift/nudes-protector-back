@@ -10,13 +10,19 @@ import mm.nudesprotectorback.auth.web.dto.MfaVerifyRequest
 import mm.nudesprotectorback.auth.web.dto.MfaVerifyResponse
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.web.authentication.RememberMeServices
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.stereotype.Service
 
 @Service
 class MfaAuthenticationService(
     private val authenticationManager: AuthenticationManager,
+    private val rememberMeServices: RememberMeServices,
 ) {
+    companion object {
+        private const val REMEMBER_ME_SESSION_ATTRIBUTE = "AUTH_REMEMBER_ME_REQUESTED"
+    }
+
     fun startAuthentication(
         request: MfaLoginRequest,
         httpServletRequest: HttpServletRequest,
@@ -31,11 +37,19 @@ class MfaAuthenticationService(
 
         if (authentication.isAuthenticated) {
             saveAuthentication(authentication, httpServletRequest, httpServletResponse)
+            applyRememberMeIfRequested(
+                rememberMe = request.rememberMe,
+                authentication = authentication,
+                httpServletRequest = httpServletRequest,
+                httpServletResponse = httpServletResponse,
+            )
             return MfaLoginResponse(
                 otpRequired = false,
                 message = "Authenticated successfully",
             )
         }
+
+        httpServletRequest.session.setAttribute(REMEMBER_ME_SESSION_ATTRIBUTE, request.rememberMe)
 
         return MfaLoginResponse(
             otpRequired = true,
@@ -56,6 +70,13 @@ class MfaAuthenticationService(
         )
 
         saveAuthentication(authentication, httpServletRequest, httpServletResponse)
+        applyRememberMeIfRequested(
+            rememberMe = httpServletRequest.session.getAttribute(REMEMBER_ME_SESSION_ATTRIBUTE) as? Boolean ?: false,
+            authentication = authentication,
+            httpServletRequest = httpServletRequest,
+            httpServletResponse = httpServletResponse,
+        )
+        httpServletRequest.session.removeAttribute(REMEMBER_ME_SESSION_ATTRIBUTE)
 
         return MfaVerifyResponse(
             authenticated = true,
@@ -76,5 +97,17 @@ class MfaAuthenticationService(
             httpServletRequest,
             httpServletResponse,
         )
+    }
+
+    private fun applyRememberMeIfRequested(
+        rememberMe: Boolean,
+        authentication: org.springframework.security.core.Authentication,
+        httpServletRequest: HttpServletRequest,
+        httpServletResponse: HttpServletResponse,
+    ) {
+        if (!rememberMe) {
+            return
+        }
+        rememberMeServices.loginSuccess(httpServletRequest, httpServletResponse, authentication)
     }
 }
