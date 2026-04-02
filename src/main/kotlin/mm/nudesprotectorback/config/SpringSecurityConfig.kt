@@ -6,12 +6,17 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.core.JdbcOperations
+import org.springframework.security.authentication.ott.JdbcOneTimeTokenService
+import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.ProviderManager
 import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.web.authentication.ott.DefaultGenerateOneTimeTokenRequestResolver
+import org.springframework.security.web.authentication.ott.GenerateOneTimeTokenRequestResolver
+import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository
@@ -29,11 +34,16 @@ class SpringSecurityConfig(
     private val passkeyRpName: String,
     @Value($$"${app.security.passkeys.allowed-origins:http://localhost:3000}")
     private val allowedOrigins: String,
+    @Value($$"${app.security.ott.ttl:PT5M}")
+    private val ottTtl: java.time.Duration,
 ) {
 
     @Bean
     fun securityFilterChain(
         http: HttpSecurity,
+        oneTimeTokenService: OneTimeTokenService,
+        generateOneTimeTokenRequestResolver: GenerateOneTimeTokenRequestResolver,
+        oneTimeTokenGenerationSuccessHandler: OneTimeTokenGenerationSuccessHandler,
     ): SecurityFilterChain =
         http
             .csrf {
@@ -44,6 +54,8 @@ class SpringSecurityConfig(
                     "/csrf",
                     "/logout",
                     "/login/webauthn",
+                    "/login/ott",
+                    "/ott/generate",
                     "/users/register",
                     "/users/verify-email",
                     "/users/mfa/login",
@@ -58,8 +70,22 @@ class SpringSecurityConfig(
                 it.allowedOrigins(allowedOrigins)
                 it.disableDefaultRegistrationPage(true)
             }
+            .oneTimeTokenLogin {
+                it.tokenGenerationSuccessHandler(oneTimeTokenGenerationSuccessHandler)
+                it.tokenService(oneTimeTokenService)
+                it.generateRequestResolver(generateOneTimeTokenRequestResolver)
+            }
             .logout(Customizer.withDefaults())
             .build()
+
+    @Bean
+    fun oneTimeTokenService(jdbc: JdbcOperations): OneTimeTokenService = JdbcOneTimeTokenService(jdbc)
+
+    @Bean
+    fun generateOneTimeTokenRequestResolver(): GenerateOneTimeTokenRequestResolver =
+        DefaultGenerateOneTimeTokenRequestResolver().apply {
+            setExpiresIn(ottTtl)
+        }
 
     @Bean
     fun jdbcPublicKeyCredentialRepository(jdbc: JdbcOperations): JdbcPublicKeyCredentialUserEntityRepository {

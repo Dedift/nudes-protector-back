@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/changes/db.changelog-003-add-mfa-enabled-to-users.yaml
   - include:
       file: db/changelog/changes/db.changelog-004-create-webauthn-tables.yaml
+  - include:
+      file: db/changelog/changes/db.changelog-005-create-one-time-tokens.yaml
