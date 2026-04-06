@@ -23,6 +23,7 @@ import mm.nudesprotectorback.user.service.UserSettingsService
 import mm.nudesprotectorback.user.web.dto.CreateUserRequest
 import mm.nudesprotectorback.user.web.dto.CreateUserResponse
 import mm.nudesprotectorback.user.web.dto.UpdateUserMfaRequest
+import mm.nudesprotectorback.user.web.dto.UpdatePasswordRequest
 import mm.nudesprotectorback.user.web.dto.UserSettingsResponse
 import mm.nudesprotectorback.user.web.dto.VerifyEmailRequest
 import mm.nudesprotectorback.user.web.dto.VerifyEmailResponse
@@ -86,4 +87,13 @@ class UserController(
             email = authentication.name,
             enabled = request.enabled,
         )
+
+    @PutMapping("/me/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun updateMyPassword(
+        authentication: Authentication,
+        @Valid @RequestBody request: UpdatePasswordRequest,
+    ) {
+        userSettingsService.updatePassword(authentication.name, request)
+    }
 }

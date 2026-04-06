@@ -33,9 +33,11 @@ class ApiExceptionHandler {
     private fun mapAuthenticationMessage(message: String?): String =
         when (message) {
             "Invalid email or password" -> "Invalid email or password."
+            "Current password is incorrect" -> "Current password is incorrect."
             "Invalid OTP" -> "The login code is incorrect. Check the latest email and try again."
             "OTP expired" -> "The login code has expired. Request a new code and try again."
             "Invalid OTP. A new code has been sent" -> "The login code is no longer valid. A new code has been sent to your email."
+            "Magic link is invalid or expired." -> "Magic link is invalid or expired."
             else -> message ?: "Authentication failed."
         }
 }

@@ -6,6 +6,7 @@ import mm.nudesprotectorback.auth.rememberme.JdbcPersistentTokenRepository
 import mm.nudesprotectorback.auth.security.EmailOtpAuthenticationProvider
 import mm.nudesprotectorback.auth.security.EmailPasswordAuthenticationProvider
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.web.server.servlet.CookieSameSiteSupplier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.core.JdbcOperations
@@ -44,6 +45,10 @@ class SpringSecurityConfig(
     private val rememberMeKey: String,
     @Value($$"${app.security.remember-me.token-validity-seconds:2592000}")
     private val rememberMeTokenValiditySeconds: Int,
+    @Value($$"${app.security.remember-me.cookie-name:remember-me}")
+    private val rememberMeCookieName: String,
+    @Value($$"${app.security.remember-me.secure-cookie:false}")
+    private val rememberMeSecureCookie: Boolean,
 ) {
 
     @Bean
@@ -120,8 +125,14 @@ class SpringSecurityConfig(
             persistentTokenRepository,
         ).apply {
             setAlwaysRemember(true)
+            setCookieName(rememberMeCookieName)
             setTokenValiditySeconds(rememberMeTokenValiditySeconds)
+            setUseSecureCookie(rememberMeSecureCookie)
         }
+
+    @Bean
+    fun rememberMeCookieSameSiteSupplier(): CookieSameSiteSupplier =
+        CookieSameSiteSupplier.ofLax().whenHasName(rememberMeCookieName)
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource =
