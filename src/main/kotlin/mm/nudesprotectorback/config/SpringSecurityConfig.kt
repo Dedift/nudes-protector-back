@@ -18,16 +18,16 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.core.userdetails.UserDetailsService
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.RememberMeServices
 import org.springframework.security.web.authentication.ott.DefaultGenerateOneTimeTokenRequestResolver
 import org.springframework.security.web.authentication.ott.GenerateOneTimeTokenRequestResolver
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler
 import org.springframework.security.web.authentication.rememberme.PersistentTokenBasedRememberMeServices
 import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository
-import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.webauthn.management.JdbcPublicKeyCredentialUserEntityRepository
 import org.springframework.security.web.webauthn.management.JdbcUserCredentialRepository
 
@@ -100,7 +100,11 @@ class SpringSecurityConfig(
                     userInfo.oidcUserService(customOidcUserService)
                 }
             }
-            .logout(Customizer.withDefaults())
+            .logout {
+                it.logoutSuccessHandler { _, response, _ ->
+                    response.status = 204
+                }
+            }
             .build()
 
     @Bean
