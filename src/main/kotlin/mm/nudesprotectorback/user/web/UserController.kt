@@ -3,6 +3,7 @@ package mm.nudesprotectorback.user.web
 import jakarta.validation.Valid
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import mm.nudesprotectorback.auth.oauth2.service.OAuth2AccountManagementService
 import mm.nudesprotectorback.auth.service.MfaAuthenticationService
 import mm.nudesprotectorback.auth.web.dto.MfaLoginRequest
 import mm.nudesprotectorback.auth.web.dto.MfaLoginResponse
@@ -11,6 +12,8 @@ import mm.nudesprotectorback.auth.web.dto.MfaVerifyResponse
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -22,6 +25,7 @@ import mm.nudesprotectorback.user.service.UserRegistrationService
 import mm.nudesprotectorback.user.service.UserSettingsService
 import mm.nudesprotectorback.user.web.dto.CreateUserRequest
 import mm.nudesprotectorback.user.web.dto.CreateUserResponse
+import mm.nudesprotectorback.user.web.dto.OAuth2AccountResponse
 import mm.nudesprotectorback.user.web.dto.UpdateUserMfaRequest
 import mm.nudesprotectorback.user.web.dto.UpdatePasswordRequest
 import mm.nudesprotectorback.user.web.dto.UserSettingsResponse
@@ -35,6 +39,7 @@ class UserController(
     private val emailVerificationService: EmailVerificationService,
     private val mfaAuthenticationService: MfaAuthenticationService,
     private val userSettingsService: UserSettingsService,
+    private val oauth2AccountManagementService: OAuth2AccountManagementService,
 ) {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -95,5 +100,19 @@ class UserController(
         @Valid @RequestBody request: UpdatePasswordRequest,
     ) {
         userSettingsService.updatePassword(authentication.name, request)
+    }
+
+    @GetMapping("/me/oauth2-accounts")
+    @ResponseStatus(HttpStatus.OK)
+    fun getMyOauth2Accounts(authentication: Authentication): List<OAuth2AccountResponse> =
+        oauth2AccountManagementService.listAccounts(authentication.name)
+
+    @DeleteMapping("/me/oauth2-accounts/{provider}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun unlinkMyOauth2Account(
+        authentication: Authentication,
+        @PathVariable provider: String,
+    ) {
+        oauth2AccountManagementService.unlink(authentication.name, provider)
     }
 }

@@ -7,4 +7,5 @@ import java.util.UUID
 interface UserOAuth2AccountRepository : CrudRepository<UserOAuth2Account, UUID> {
     fun findByProviderAndProviderUserId(provider: String, providerUserId: String): UserOAuth2Account?
     fun findByUserIdAndProvider(userId: UUID, provider: String): UserOAuth2Account?
+    fun findAllByUserId(userId: UUID): List<UserOAuth2Account>
 }

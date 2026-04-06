@@ -33,7 +33,10 @@ class EmailPasswordAuthenticationProvider(
         }
 
         if (!passwordEncoder.matches(rawPassword, user.passwordHash)) {
-            loginAttemptService.registerFailure(checkNotNull(user.id))
+            val lockedNow = loginAttemptService.registerFailure(checkNotNull(user.id))
+            if (lockedNow) {
+                throw LockedException("Account is locked for 15 minutes after too many failed login attempts")
+            }
             throw BadCredentialsException("Invalid email or password")
         }
 

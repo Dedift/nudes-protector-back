@@ -20,10 +20,11 @@ class LoginAttemptService(
         return state.attempts >= maxAttempts
     }
 
-    fun registerFailure(userId: UUID) {
+    fun registerFailure(userId: UUID): Boolean {
         val currentState = loginAttemptStateRepository.findById(userId).orElse(null)
         val nextState = currentState?.increment() ?: LoginAttemptState.initial(userId, lockDuration)
         loginAttemptStateRepository.save(nextState)
+        return nextState.attempts >= maxAttempts
     }
 
     fun clear(userId: UUID) {
