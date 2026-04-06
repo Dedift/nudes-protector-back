@@ -37,15 +37,16 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID:95833835081-vd6eei8056loul5im94b8hplqvffeeph.apps.googleusercontent.com}
-            client-secret: ${GOOGLE_CLIENT_SECRET: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}
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dummy-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dummy-google-client-secret}
             scope:
               - openid
               - profile
               - email
           github:
-            client-id: ${GITHUB_CLIENT_ID:Ov23liSrY5DM9r9AaQmU}
-            client-secret: ${GITHUB_CLIENT_SECRET:373d348e05974d64ed43b5b9ff85d3aad79ce26f}
+            client-id: ${GITHUB_CLIENT_ID:dummy-github-client-id}
+            client-secret: ${GITHUB_CLIENT_SECRET:dummy-github-client-secret}
             scope:
               - read:user
               - user:email
