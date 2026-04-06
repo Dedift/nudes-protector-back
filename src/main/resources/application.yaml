@@ -60,6 +60,8 @@ app:
     mfa:
       otp-ttl: PT5M
       max-attempts: 3
+    ott:
+      ttl: PT10M
     passkeys:
       rp-id: ${APP_SECURITY_PASSKEYS_RP_ID:localhost}
       rp-name: ${APP_SECURITY_PASSKEYS_RP_NAME:Nudes Protector}
