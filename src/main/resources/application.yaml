@@ -54,6 +54,9 @@ app:
   frontend:
     base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
   security:
+    login:
+      max-attempts: 5
+      lock-duration: PT15M
     mfa:
       otp-ttl: PT5M
       max-attempts: 3
