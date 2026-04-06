@@ -51,6 +51,8 @@ spring:
               - user:email
 
 app:
+  frontend:
+    base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
   security:
     mfa:
       otp-ttl: PT5M

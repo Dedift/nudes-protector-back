@@ -1,5 +1,7 @@
 package mm.nudesprotectorback.config
 
+import mm.nudesprotectorback.auth.ott.OttAuthenticationFailureHandler
+import mm.nudesprotectorback.auth.ott.OttAuthenticationSuccessHandler
 import mm.nudesprotectorback.auth.oauth2.service.CustomOAuth2UserService
 import mm.nudesprotectorback.auth.oauth2.service.CustomOidcUserService
 import mm.nudesprotectorback.auth.rememberme.JdbcPersistentTokenRepository
@@ -9,11 +11,10 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.core.JdbcOperations
-import org.springframework.security.authentication.ott.JdbcOneTimeTokenService
-import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.ProviderManager
-import org.springframework.security.config.Customizer
+import org.springframework.security.authentication.ott.JdbcOneTimeTokenService
+import org.springframework.security.authentication.ott.OneTimeTokenService
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
@@ -30,6 +31,9 @@ import org.springframework.security.web.authentication.rememberme.PersistentToke
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository
 import org.springframework.security.web.webauthn.management.JdbcPublicKeyCredentialUserEntityRepository
 import org.springframework.security.web.webauthn.management.JdbcUserCredentialRepository
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
@@ -41,6 +45,8 @@ class SpringSecurityConfig(
     private val passkeyRpName: String,
     @Value($$"${app.security.passkeys.allowed-origins:http://localhost:3000}")
     private val allowedOrigins: String,
+    @Value($$"${app.frontend.base-url:http://localhost:3000}")
+    private val frontendBaseUrl: String,
     @Value($$"${app.security.ott.ttl:PT5M}")
     private val ottTtl: java.time.Duration,
     @Value($$"${app.security.remember-me.key:change-me-remember-me-key}")
@@ -58,8 +64,14 @@ class SpringSecurityConfig(
         rememberMeServices: RememberMeServices,
         customOAuth2UserService: CustomOAuth2UserService,
         customOidcUserService: CustomOidcUserService,
+        ottAuthenticationSuccessHandler: OttAuthenticationSuccessHandler,
+        ottAuthenticationFailureHandler: OttAuthenticationFailureHandler,
+        corsConfigurationSource: CorsConfigurationSource,
     ): SecurityFilterChain =
         http
+            .cors {
+                it.configurationSource(corsConfigurationSource)
+            }
             .csrf {
                 it.csrfTokenRepository(HttpSessionCsrfTokenRepository())
             }
@@ -90,6 +102,8 @@ class SpringSecurityConfig(
                 it.tokenGenerationSuccessHandler(oneTimeTokenGenerationSuccessHandler)
                 it.tokenService(oneTimeTokenService)
                 it.generateRequestResolver(generateOneTimeTokenRequestResolver)
+                it.successHandler(ottAuthenticationSuccessHandler)
+                it.failureHandler(ottAuthenticationFailureHandler)
             }
             .rememberMe {
                 it.rememberMeServices(rememberMeServices)
@@ -98,6 +112,12 @@ class SpringSecurityConfig(
                 it.userInfoEndpoint { userInfo ->
                     userInfo.userService(customOAuth2UserService)
                     userInfo.oidcUserService(customOidcUserService)
+                }
+                it.successHandler { _, response, _ ->
+                    response.sendRedirect(frontendBaseUrl)
+                }
+                it.failureHandler { _, response, exception ->
+                    response.sendRedirect("$frontendBaseUrl?screen=login&error=${exception.javaClass.simpleName}")
                 }
             }
             .logout {
@@ -124,6 +144,7 @@ class SpringSecurityConfig(
             userDetailsService,
             persistentTokenRepository,
         ).apply {
+            setAlwaysRemember(true)
             setTokenValiditySeconds(rememberMeTokenValiditySeconds)
         }
 
@@ -131,6 +152,20 @@ class SpringSecurityConfig(
     fun generateOneTimeTokenRequestResolver(): GenerateOneTimeTokenRequestResolver =
         DefaultGenerateOneTimeTokenRequestResolver().apply {
             setExpiresIn(ottTtl)
+        }
+
+    @Bean
+    fun corsConfigurationSource(): CorsConfigurationSource =
+        UrlBasedCorsConfigurationSource().apply {
+            registerCorsConfiguration(
+                "/**",
+                CorsConfiguration().apply {
+                    allowedOrigins = listOf(frontendBaseUrl)
+                    allowedMethods = listOf("*")
+                    allowedHeaders = listOf("*")
+                    allowCredentials = true
+                }
+            )
         }
 
     @Bean
