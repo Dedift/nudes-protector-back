@@ -9,15 +9,21 @@ import mm.nudesprotectorback.auth.web.dto.MfaLoginResponse
 import mm.nudesprotectorback.auth.web.dto.MfaVerifyRequest
 import mm.nudesprotectorback.auth.web.dto.MfaVerifyResponse
 import org.springframework.http.HttpStatus
+import org.springframework.security.core.Authentication
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import mm.nudesprotectorback.user.service.EmailVerificationService
 import mm.nudesprotectorback.user.service.UserRegistrationService
+import mm.nudesprotectorback.user.service.UserSettingsService
 import mm.nudesprotectorback.user.web.dto.CreateUserRequest
 import mm.nudesprotectorback.user.web.dto.CreateUserResponse
+import mm.nudesprotectorback.user.web.dto.UpdateUserMfaRequest
+import mm.nudesprotectorback.user.web.dto.UserSettingsResponse
 import mm.nudesprotectorback.user.web.dto.VerifyEmailRequest
 import mm.nudesprotectorback.user.web.dto.VerifyEmailResponse
 
@@ -27,6 +33,7 @@ class UserController(
     private val userRegistrationService: UserRegistrationService,
     private val emailVerificationService: EmailVerificationService,
     private val mfaAuthenticationService: MfaAuthenticationService,
+    private val userSettingsService: UserSettingsService,
 ) {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -62,5 +69,21 @@ class UserController(
             request = request,
             httpServletRequest = httpServletRequest,
             httpServletResponse = httpServletResponse,
+        )
+
+    @GetMapping("/me/settings")
+    @ResponseStatus(HttpStatus.OK)
+    fun getMySettings(authentication: Authentication): UserSettingsResponse =
+        userSettingsService.getSettings(authentication.name)
+
+    @PutMapping("/me/settings/mfa")
+    @ResponseStatus(HttpStatus.OK)
+    fun updateMyMfa(
+        authentication: Authentication,
+        @RequestBody request: UpdateUserMfaRequest,
+    ): UserSettingsResponse =
+        userSettingsService.updateMfa(
+            email = authentication.name,
+            enabled = request.enabled,
         )
 }

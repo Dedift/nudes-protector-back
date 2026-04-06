@@ -32,7 +32,6 @@ class UserRegistrationService(
                 username = normalizedUsername,
                 email = normalizedEmail,
                 passwordHash = encodedPassword,
-                mfaEnabled = request.mfaEnabled,
             )
         )
 
