@@ -34,6 +34,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.security:spring-security-webauthn")
     implementation("org.springframework.security:spring-security-crypto")
+    implementation("io.minio:minio:8.5.17")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-test")

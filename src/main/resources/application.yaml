@@ -53,6 +53,13 @@ spring:
 app:
   frontend:
     base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
+  gallery:
+    minio:
+      endpoint: ${APP_GALLERY_MINIO_ENDPOINT:http://localhost:9000}
+      access-key: ${APP_GALLERY_MINIO_ACCESS_KEY:minioadmin}
+      secret-key: ${APP_GALLERY_MINIO_SECRET_KEY:minioadmin}
+      bucket: ${APP_GALLERY_MINIO_BUCKET:nudes-gallery}
+      max-items: ${APP_GALLERY_MINIO_MAX_ITEMS:10}
   security:
     login:
       max-attempts: 5

@@ -69,6 +69,8 @@ class SpringSecurityConfig(
             .authorizeHttpRequests {
                 it.requestMatchers(
                     "/csrf",
+                    "/api/images",
+                    "/api/images/*/blurred",
                     "/logout",
                     "/oauth2/**",
                     "/login/webauthn",
