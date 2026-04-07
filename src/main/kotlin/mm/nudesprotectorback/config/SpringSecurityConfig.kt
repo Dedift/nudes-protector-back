@@ -55,6 +55,7 @@ class SpringSecurityConfig(
     fun securityFilterChain(
         http: HttpSecurity,
         rememberMeServices: RememberMeServices,
+        persistentTokenRepository: PersistentTokenRepository,
         customOAuth2UserService: CustomOAuth2UserService,
         customOidcUserService: CustomOidcUserService,
         corsConfigurationSource: CorsConfigurationSource,
@@ -106,6 +107,9 @@ class SpringSecurityConfig(
                 }
             }
             .logout {
+                it.addLogoutHandler { _, _, authentication ->
+                    authentication?.name?.let(persistentTokenRepository::removeUserTokens)
+                }
                 it.logoutSuccessHandler { _, response, _ ->
                     response.status = 204
                 }
