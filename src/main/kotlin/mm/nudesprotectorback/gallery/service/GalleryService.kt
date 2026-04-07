@@ -1,13 +1,15 @@
 package mm.nudesprotectorback.gallery.service
 
 import io.minio.GetObjectArgs
-import io.minio.ListObjectsArgs
 import io.minio.MinioClient
 import io.minio.StatObjectArgs
 import mm.nudesprotectorback.gallery.config.GalleryProperties
+import mm.nudesprotectorback.gallery.search.ImageSearchRepository
 import mm.nudesprotectorback.gallery.web.dto.GalleryItemResponse
+import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
 import java.awt.Color
@@ -17,7 +19,6 @@ import java.awt.image.ConvolveOp
 import java.awt.image.Kernel
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
-import java.util.Base64
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
@@ -29,38 +30,33 @@ import kotlin.random.Random
 class GalleryService(
     private val minioClient: MinioClient,
     private val galleryProperties: GalleryProperties,
+    private val imageSearchRepository: ImageSearchRepository,
 ) {
     private val blurredCache = ConcurrentHashMap<String, GalleryImageContent>()
 
-    fun listItems(authenticated: Boolean): List<GalleryItemResponse> =
-        minioClient.listObjects(
-            ListObjectsArgs.builder()
-                .bucket(galleryProperties.bucket)
-                .recursive(true)
-                .build()
-        )
-            .asSequence()
-            .map { result -> result.get() }
-            .filterNot { it.isDir }
-            .toList()
-            .shuffled(Random.Default)
-            .take(galleryProperties.maxItems)
-            .map { item ->
-                val objectName = item.objectName()
-                val id = encodeId(objectName)
-                GalleryItemResponse(
-                    id = id,
-                    title = buildTitle(objectName),
-                    imageUrl = if (authenticated) {
-                        "/api/images/$id/original"
-                    } else {
-                        "/api/images/$id/blurred"
-                    },
-                )
-            }
+    fun listItems(authenticated: Boolean): List<GalleryItemResponse> {
+        val pageRequest = PageRequest.of(0, galleryProperties.maxItems, Sort.by("uploadedAt").descending())
+        val documents = imageSearchRepository.findAll(pageRequest).content.shuffled(Random.Default)
+
+        return documents.map { document ->
+            GalleryItemResponse(
+                id = document.id,
+                title = document.title,
+                imageUrl = if (authenticated) {
+                    "/api/images/${document.id}/original"
+                } else {
+                    "/api/images/${document.id}/blurred"
+                },
+            )
+        }
+    }
 
     fun openOriginal(id: String): GalleryStreamContent {
-        val objectName = decodeId(id)
+        val objectName = try {
+            GalleryImageMetadata.decodeId(id)
+        } catch (_: IllegalArgumentException) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Image not found")
+        }
         try {
             val stat = minioClient.statObject(
                 StatObjectArgs.builder()
@@ -174,35 +170,6 @@ class GalleryService(
             "image/webp" -> "png"
             else -> "jpg"
         }
-
-    private fun encodeId(objectName: String): String =
-        Base64.getUrlEncoder().withoutPadding().encodeToString(objectName.toByteArray())
-
-    private fun decodeId(id: String): String =
-        try {
-            String(Base64.getUrlDecoder().decode(id))
-        } catch (_: IllegalArgumentException) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Image not found")
-        }
-
-    private fun buildTitle(objectName: String): String {
-        val filename = objectName.substringAfterLast('/').substringBeforeLast('.', objectName)
-        return filename
-            .replace('-', ' ')
-            .replace('_', ' ')
-            .split(' ')
-            .filter { it.isNotBlank() }
-            .joinToString(" ") { token ->
-                token.replaceFirstChar { char ->
-                    if (char.isLowerCase()) {
-                        char.titlecase(Locale.getDefault())
-                    } else {
-                        char.toString()
-                    }
-                }
-            }
-            .ifBlank { objectName }
-    }
 }
 
 data class GalleryStreamContent(

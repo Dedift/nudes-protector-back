@@ -107,6 +107,9 @@ class SpringSecurityConfig(
                 }
             }
             .logout {
+                it.invalidateHttpSession(true)
+                it.clearAuthentication(true)
+                it.deleteCookies("JSESSIONID", rememberMeCookieName)
                 it.addLogoutHandler { _, _, authentication ->
                     authentication?.name?.let(persistentTokenRepository::removeUserTokens)
                 }

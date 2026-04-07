@@ -49,6 +49,8 @@ spring:
             scope:
               - read:user
               - user:email
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
 
 app:
   frontend:

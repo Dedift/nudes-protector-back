@@ -33,7 +33,19 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.6
+    container_name: nudes-protector-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
 
 volumes:
   postgres_data:
   minio_data:
+  elasticsearch_data:
