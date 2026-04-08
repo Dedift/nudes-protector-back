@@ -18,7 +18,9 @@ class UserSettingsService(
     fun getSettings(email: String): UserSettingsResponse {
         val user = loadUser(email)
         return UserSettingsResponse(
+            username = user.username,
             email = user.email,
+            createdAt = user.createdAt,
             mfaEnabled = user.mfaEnabled,
         )
     }
@@ -27,7 +29,9 @@ class UserSettingsService(
         val user = loadUser(email)
         val updatedUser = userRepository.save(user.copy(mfaEnabled = enabled))
         return UserSettingsResponse(
+            username = updatedUser.username,
             email = updatedUser.email,
+            createdAt = updatedUser.createdAt,
             mfaEnabled = updatedUser.mfaEnabled,
         )
     }
