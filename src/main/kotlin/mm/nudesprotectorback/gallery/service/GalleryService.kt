@@ -1,15 +1,18 @@
 package mm.nudesprotectorback.gallery.service
 
 import io.minio.GetObjectArgs
+import io.minio.ListObjectsArgs
 import io.minio.MinioClient
 import io.minio.StatObjectArgs
 import mm.nudesprotectorback.gallery.config.GalleryProperties
-import mm.nudesprotectorback.gallery.search.ImageSearchRepository
+import mm.nudesprotectorback.gallery.search.ImageDocument
 import mm.nudesprotectorback.gallery.web.dto.GalleryItemResponse
-import org.springframework.data.domain.Sort
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.elasticsearch.client.elc.NativeQuery
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations
+import org.springframework.data.elasticsearch.core.search
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
-import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
 import java.awt.Color
@@ -19,8 +22,8 @@ import java.awt.image.ConvolveOp
 import java.awt.image.Kernel
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import java.time.Instant
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 import kotlin.math.PI
 import kotlin.math.exp
@@ -30,13 +33,10 @@ import kotlin.random.Random
 class GalleryService(
     private val minioClient: MinioClient,
     private val galleryProperties: GalleryProperties,
-    private val imageSearchRepository: ImageSearchRepository,
+    private val elasticsearchOperations: ElasticsearchOperations,
 ) {
-    private val blurredCache = ConcurrentHashMap<String, GalleryImageContent>()
-
     fun listItems(authenticated: Boolean): List<GalleryItemResponse> {
-        val pageRequest = PageRequest.of(0, galleryProperties.maxItems, Sort.by("uploadedAt").descending())
-        val documents = imageSearchRepository.findAll(pageRequest).content.shuffled(Random.Default)
+        val documents = loadDocuments()
 
         return documents.map { document ->
             GalleryItemResponse(
@@ -50,6 +50,61 @@ class GalleryService(
             )
         }
     }
+
+    private fun loadDocuments(): List<ImageDocument> {
+        return runCatching {
+            val seed = Instant.now().toEpochMilli().toString()
+            val query = NativeQuery.builder()
+                .withQuery { query ->
+                    query.functionScore { functionScore ->
+                        functionScore
+                            .query { innerQuery ->
+                                innerQuery.matchAll { matchAll -> matchAll }
+                            }
+                            .functions { function ->
+                                function.randomScore { randomScore ->
+                                    randomScore.seed(seed)
+                                }
+                            }
+                    }
+                }
+                .withPageable(PageRequest.of(0, galleryProperties.maxItems))
+                .build()
+
+            elasticsearchOperations.search<ImageDocument>(query)
+                .searchHits
+                .map { it.content }
+        }.getOrElse {
+            listFromMinio()
+        }
+    }
+
+    private fun listFromMinio(): List<ImageDocument> =
+        minioClient.listObjects(
+            ListObjectsArgs.builder()
+                .bucket(galleryProperties.bucket)
+                .recursive(true)
+                .build()
+        )
+            .asSequence()
+            .map { result -> result.get() }
+            .filterNot { it.isDir }
+            .sortedByDescending { it.lastModified() }
+            .map { item ->
+                ImageDocument(
+                    id = GalleryImageMetadata.encodeId(item.objectName()),
+                    title = GalleryImageMetadata.buildTitle(item.objectName()),
+                    filename = GalleryImageMetadata.filename(item.objectName()),
+                    contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                    width = 0,
+                    height = 0,
+                    uploadedAt = item.lastModified()?.toInstant() ?: Instant.EPOCH,
+                    uploadedBy = "system",
+                )
+            }
+            .toList()
+            .shuffled(Random.Default)
+            .take(galleryProperties.maxItems)
 
     fun openOriginal(id: String): GalleryStreamContent {
         val objectName = try {
@@ -73,7 +128,10 @@ class GalleryService(
 
             return GalleryStreamContent(
                 stream = stream,
-                contentType = stat.contentType().takeUnless { it.isNullOrBlank() } ?: MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                contentType = resolveContentType(
+                    objectName = objectName,
+                    contentType = stat.contentType(),
+                ),
                 size = stat.size(),
             )
         } catch (_: Exception) {
@@ -82,35 +140,54 @@ class GalleryService(
     }
 
     fun openBlurred(id: String): GalleryImageContent {
-        return blurredCache.computeIfAbsent(id) {
-            val original = openOriginal(id)
-            original.stream.use { stream ->
-                val source = ImageIO.read(stream) ?: throw ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported image format")
-                val blurred = blurImage(source)
-                val format = imageFormat(original.contentType)
-                val bytes = ByteArrayOutputStream().use { output ->
-                    ImageIO.write(blurred, format, output)
-                    output.toByteArray()
-                }
-
-                GalleryImageContent(
-                    bytes = bytes,
-                    contentType = original.contentType,
-                )
+        val original = openOriginal(id)
+        return original.stream.use { stream ->
+            val source = ImageIO.read(stream) ?: throw ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported image format")
+            val blurred = blurImage(source)
+            val format = imageFormat(original.contentType)
+            val bytes = ByteArrayOutputStream().use { output ->
+                ImageIO.write(blurred, format, output)
+                output.toByteArray()
             }
+
+            GalleryImageContent(
+                bytes = bytes,
+                contentType = when (format) {
+                    "png" -> MediaType.IMAGE_PNG_VALUE
+                    else -> MediaType.IMAGE_JPEG_VALUE
+                },
+            )
         }
     }
 
     private fun blurImage(source: BufferedImage): BufferedImage {
-        val prepared = pixelate(source, factor = 28)
+        val preview = resizeToMaxDimension(source, maxDimension = 900)
+        val prepared = pixelate(preview, factor = 7)
 
-        val kernel = gaussianKernel(radius = 20, sigma = 10.0)
+        val kernel = gaussianKernel(radius = 3, sigma = 1.8)
         val operation = ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null)
-        val firstPass = operation.filter(prepared, null)
-        val secondPass = operation.filter(firstPass, null)
-        val thirdPass = operation.filter(secondPass, null)
+        val softened = operation.filter(prepared, null)
 
-        return darken(thirdPass, alpha = 0.22f)
+        return darken(softened, alpha = 0.12f)
+    }
+
+    private fun resizeToMaxDimension(source: BufferedImage, maxDimension: Int): BufferedImage {
+        val largestDimension = maxOf(source.width, source.height)
+        if (largestDimension <= maxDimension) {
+            return source
+        }
+
+        val scale = maxDimension.toDouble() / largestDimension.toDouble()
+        val targetWidth = maxOf(1, (source.width * scale).toInt())
+        val targetHeight = maxOf(1, (source.height * scale).toInt())
+
+        val resized = BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB)
+        val graphics = resized.createGraphics()
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+        graphics.drawImage(source, 0, 0, targetWidth, targetHeight, null)
+        graphics.dispose()
+
+        return resized
     }
 
     private fun pixelate(source: BufferedImage, factor: Int): BufferedImage {
@@ -170,6 +247,24 @@ class GalleryService(
             "image/webp" -> "png"
             else -> "jpg"
         }
+
+    private fun resolveContentType(
+        objectName: String,
+        contentType: String?,
+    ): String {
+        val normalized = contentType?.trim().orEmpty()
+        if (normalized.isNotBlank() && normalized != MediaType.APPLICATION_OCTET_STREAM_VALUE) {
+            return normalized
+        }
+
+        return when (objectName.substringAfterLast('.', "").lowercase(Locale.ROOT)) {
+            "png" -> MediaType.IMAGE_PNG_VALUE
+            "gif" -> MediaType.IMAGE_GIF_VALUE
+            "webp" -> "image/webp"
+            "jpg", "jpeg" -> MediaType.IMAGE_JPEG_VALUE
+            else -> MediaType.APPLICATION_OCTET_STREAM_VALUE
+        }
+    }
 }
 
 data class GalleryStreamContent(

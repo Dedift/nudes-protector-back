@@ -133,7 +133,6 @@ class SpringSecurityConfig(
             userDetailsService,
             persistentTokenRepository,
         ).apply {
-            setAlwaysRemember(true)
             setCookieName(rememberMeCookieName)
             setTokenValiditySeconds(rememberMeTokenValiditySeconds)
             setUseSecureCookie(rememberMeSecureCookie)

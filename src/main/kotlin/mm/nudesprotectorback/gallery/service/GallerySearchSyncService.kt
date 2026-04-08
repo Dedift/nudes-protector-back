@@ -6,7 +6,8 @@ import io.minio.MinioClient
 import io.minio.StatObjectArgs
 import mm.nudesprotectorback.gallery.config.GalleryProperties
 import mm.nudesprotectorback.gallery.search.ImageDocument
-import mm.nudesprotectorback.gallery.search.ImageSearchRepository
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations
+import org.springframework.data.elasticsearch.core.indexOps
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -16,7 +17,7 @@ import javax.imageio.ImageIO
 class GallerySearchSyncService(
     private val minioClient: MinioClient,
     private val galleryProperties: GalleryProperties,
-    private val imageSearchRepository: ImageSearchRepository,
+    private val elasticsearchOperations: ElasticsearchOperations,
 ) {
     fun syncFromMinio() {
         val documents = minioClient.listObjects(
@@ -31,8 +32,16 @@ class GallerySearchSyncService(
             .map { item -> toDocument(item.objectName()) }
             .toList()
 
-        imageSearchRepository.deleteAll()
-        imageSearchRepository.saveAll(documents)
+        runCatching {
+            val indexOps = elasticsearchOperations.indexOps<ImageDocument>()
+            if (indexOps.exists()) {
+                indexOps.delete()
+            }
+
+            indexOps.create()
+            indexOps.putMapping(indexOps.createMapping(ImageDocument::class.java))
+            elasticsearchOperations.save(documents)
+        }
     }
 
     private fun toDocument(objectName: String): ImageDocument {
