@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.web.server.servlet.CookieSameSiteSupplier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpStatus
 import org.springframework.jdbc.core.JdbcOperations
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.ProviderManager
@@ -41,6 +42,8 @@ class SpringSecurityConfig(
     private val allowedOrigins: String,
     @Value($$"${app.frontend.base-url:http://localhost:3000}")
     private val frontendBaseUrl: String,
+    @Value($$"${app.security.cors.allowed-origins:}")
+    private val corsAllowedOrigins: String,
     @Value($$"${app.security.remember-me.key:change-me-remember-me-key}")
     private val rememberMeKey: String,
     @Value($$"${app.security.remember-me.token-validity-seconds:2592000}")
@@ -66,6 +69,27 @@ class SpringSecurityConfig(
             }
             .csrf {
                 it.csrfTokenRepository(HttpSessionCsrfTokenRepository())
+                it.ignoringRequestMatchers(
+                    "/users/register",
+                    "/users/verify-email",
+                    "/users/mfa/login",
+                    "/users/mfa/verify",
+                    "/ott/generate",
+                    "/login/webauthn",
+                    "/webauthn/register",
+                    "/webauthn/register/options",
+                    "/webauthn/authenticate/options",
+                    "/oauth2/**",
+                    "/login/oauth2/**",
+                )
+            }
+            .exceptionHandling {
+                it.authenticationEntryPoint { _, response, _ ->
+                    response.status = HttpStatus.UNAUTHORIZED.value()
+                }
+                it.accessDeniedHandler { _, response, _ ->
+                    response.status = HttpStatus.FORBIDDEN.value()
+                }
             }
             .authorizeHttpRequests {
                 it.requestMatchers(
@@ -148,13 +172,24 @@ class SpringSecurityConfig(
             registerCorsConfiguration(
                 "/**",
                 CorsConfiguration().apply {
-                    allowedOrigins = listOf(frontendBaseUrl)
+                    allowedOriginPatterns = resolvedCorsAllowedOrigins()
                     allowedMethods = listOf("*")
                     allowedHeaders = listOf("*")
                     allowCredentials = true
                 }
             )
         }
+
+    private fun resolvedCorsAllowedOrigins(): List<String> {
+        val configuredOrigins = corsAllowedOrigins
+            .split(",")
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+
+        return configuredOrigins.ifEmpty {
+            listOf(frontendBaseUrl)
+        }
+    }
 
     @Bean
     fun jdbcPublicKeyCredentialRepository(jdbc: JdbcOperations): JdbcPublicKeyCredentialUserEntityRepository {
