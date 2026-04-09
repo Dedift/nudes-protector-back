@@ -25,10 +25,10 @@ spring:
     user: ${LIQUIBASE_USERNAME:${DB_USERNAME:postgres}}
     password: ${LIQUIBASE_PASSWORD:${DB_PASSWORD:postgres}}
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: nudesprotector@gmail.com
-    password: wnpx vtge jvft gccf
+    host: host.com
+    port: 111
+    username: post@gmail.com
+    password: zzzz xxxx cccc vvvv
     properties:
       mail:
         smtp:

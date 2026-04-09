@@ -101,6 +101,7 @@ class SpringSecurityConfig(
                     "/login/webauthn",
                     "/login/oauth2/**",
                     "/ott/generate",
+                    "/api/login/ott",
                     "/users/register",
                     "/users/verify-email",
                     "/users/mfa/login",

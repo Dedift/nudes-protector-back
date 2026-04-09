@@ -1,3 +1,13 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: ${APP_GOOGLE_REDIRECT_URI:${app.frontend.base-url}/login/oauth2/code/google}
+          github:
+            redirect-uri: ${APP_GITHUB_REDIRECT_URI:${app.frontend.base-url}/login/oauth2/code/github}
+
 server:
   forward-headers-strategy: framework
   servlet:
